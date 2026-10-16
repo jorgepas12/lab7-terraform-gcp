@@ -1,24 +1,25 @@
+
 name: Terraform lab7 CI/CD
-  
+
 on:
   pull_request:
     branches: [main]
   push:
     branches: [main]
-  
+
 permissions:
   contents: read
   id-token: write
-  
+
 concurrency:
-  group: lab7-terraform-$
+  group: lab7-terraform-${{ github.ref }}
   cancel-in-progress: false
-  
+
 env:
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
-  GOOGLE_PROJECT: $
-  TF_STATE_BUCKET: $
+  GOOGLE_PROJECT: ${{ vars.GCP_PROJECT_ID }}
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
 
 jobs:
   plan:
@@ -27,24 +28,42 @@ jobs:
     defaults:
       run:
         working-directory: .
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validar configuración
+        env:
+          WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
+          SA_EMAIL: ${{ secrets.SA_EMAIL }}
+        run: |
+          test -n "$GOOGLE_PROJECT" || exit 1
+          test -n "$TF_STATE_BUCKET" || exit 1
+          test -n "$SA_EMAIL" || exit 1
+          [[ "$WIF_PROVIDER" =~ ^projects/[0-9]+/locations/global/workloadIdentityPools/[^/]+/providers/[^/]+$ ]] || exit 1
+
       - name: Google Cloud OIDC
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: $
-          service_account: $
+          project_id: ${{ env.GOOGLE_PROJECT }}
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.SA_EMAIL }}
+
       - name: Terraform CLI
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.11.4"
+
       - name: Inicializar backend GCS
         run: terraform init -input=false -backend-config="bucket=${TF_STATE_BUCKET}"
+
       - name: Validar formato
         run: terraform fmt -check -recursive
-      - name: Validar configuración
+
+      - name: Validar configuración Terraform
         run: terraform validate
+
       - name: Terraform Plan
         run: terraform plan -input=false -no-color -lock-timeout=60s -var="project_id=${GOOGLE_PROJECT}"
 
@@ -54,25 +73,44 @@ jobs:
     defaults:
       run:
         working-directory: .
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validar configuración
+        env:
+          WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
+          SA_EMAIL: ${{ secrets.SA_EMAIL }}
+        run: |
+          test -n "$GOOGLE_PROJECT" || exit 1
+          test -n "$TF_STATE_BUCKET" || exit 1
+          test -n "$SA_EMAIL" || exit 1
+          [[ "$WIF_PROVIDER" =~ ^projects/[0-9]+/locations/global/workloadIdentityPools/[^/]+/providers/[^/]+$ ]] || exit 1
+
       - name: Google Cloud OIDC
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: $
-          service_account: $
+          project_id: ${{ env.GOOGLE_PROJECT }}
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.SA_EMAIL }}
+
       - name: Terraform CLI
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.11.4"
+
       - name: Inicializar backend GCS
         run: terraform init -input=false -backend-config="bucket=${TF_STATE_BUCKET}"
+
       - name: Validar formato
         run: terraform fmt -check -recursive
-      - name: Validar configuración
+
+      - name: Validar configuración Terraform
         run: terraform validate
+
       - name: Revisar plan de main
         run: terraform plan -input=false -no-color -lock-timeout=60s -var="project_id=${GOOGLE_PROJECT}"
+
       - name: Aplicar infraestructura
         run: terraform apply -input=false -auto-approve -lock-timeout=60s -var="project_id=${GOOGLE_PROJECT}"
