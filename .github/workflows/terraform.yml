@@ -30,15 +30,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Validar variables del repositorio
+      - name: Validar configuración
         env:
           WIF_PROVIDER: $
           SA_EMAIL: $
         run: |
-          test -n "$GOOGLE_PROJECT" || { echo "::error::Falta GCP_PROJECT_ID"; exit 1; }
-          test -n "$TF_STATE_BUCKET" || { echo "::error::Falta GCP_STATE_BUCKET"; exit 1; }
-          test -n "$SA_EMAIL" || { echo "::error::Falta GCP_SERVICE_ACCOUNT"; exit 1; }
-          [[ "$WIF_PROVIDER" =~ ^projects/[0-9]+/locations/global/workloadIdentityPools/[^/]+/providers/[^/]+$ ]] || { echo "::error::Falta GCP_WIF_PROVIDER o tiene formato inválido"; exit 1; }
+          test -n "$GOOGLE_PROJECT" && test "$GOOGLE_PROJECT" != '$' || { echo "::error::GCP_PROJECT_ID inválido"; exit 1; }
+          test -n "$TF_STATE_BUCKET" && test "$TF_STATE_BUCKET" != '$' || { echo "::error::GCP_STATE_BUCKET inválido"; exit 1; }
+          test -n "$SA_EMAIL" && test "$SA_EMAIL" != '$' || { echo "::error::GCP_SERVICE_ACCOUNT inválido"; exit 1; }
+          [[ "$WIF_PROVIDER" =~ ^projects/[0-9]+/locations/global/workloadIdentityPools/[^/]+/providers/[^/]+$ ]] || { echo "::error::GCP_WIF_PROVIDER inválido"; exit 1; }
       - name: Google Cloud OIDC
         uses: google-github-actions/auth@v2
         with:
@@ -72,10 +72,10 @@ jobs:
           WIF_PROVIDER: $
           SA_EMAIL: $
         run: |
-          test -n "$GOOGLE_PROJECT" || { echo "::error::Falta GCP_PROJECT_ID"; exit 1; }
-          test -n "$TF_STATE_BUCKET" || { echo "::error::Falta GCP_STATE_BUCKET"; exit 1; }
-          test -n "$SA_EMAIL" || { echo "::error::Falta GCP_SERVICE_ACCOUNT"; exit 1; }
-          [[ "$WIF_PROVIDER" =~ ^projects/[0-9]+/locations/global/workloadIdentityPools/[^/]+/providers/[^/]+$ ]] || { echo "::error::Falta GCP_WIF_PROVIDER o tiene formato inválido"; exit 1; }
+          test -n "$GOOGLE_PROJECT" && test "$GOOGLE_PROJECT" != '$' || { echo "::error::GCP_PROJECT_ID inválido"; exit 1; }
+          test -n "$TF_STATE_BUCKET" && test "$TF_STATE_BUCKET" != '$' || { echo "::error::GCP_STATE_BUCKET inválido"; exit 1; }
+          test -n "$SA_EMAIL" && test "$SA_EMAIL" != '$' || { echo "::error::GCP_SERVICE_ACCOUNT inválido"; exit 1; }
+          [[ "$WIF_PROVIDER" =~ ^projects/[0-9]+/locations/global/workloadIdentityPools/[^/]+/providers/[^/]+$ ]] || { echo "::error::GCP_WIF_PROVIDER inválido"; exit 1; }
       - name: Google Cloud OIDC
         uses: google-github-actions/auth@v2
         with:
@@ -96,5 +96,3 @@ jobs:
         run: terraform plan -input=false -no-color -lock-timeout=60s -var="project_id=${GOOGLE_PROJECT}"
       - name: Aplicar infraestructura
         run: terraform apply -input=false -auto-approve -lock-timeout=60s -var="project_id=${GOOGLE_PROJECT}"
-
-        
